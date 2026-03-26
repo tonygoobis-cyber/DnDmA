@@ -25,7 +25,7 @@ namespace DMAW_DND
         public const int PlayerMinimalViewInfo = 0x1410; //Engine.PlayerCameraManager CameraCachePrivate
         public const int PlayerHUD = 0x358; //Engine.PlayerController
         public const int NameIndex = 0x18; //uObject
-        public const int ComponentToWorld = 0x240;
+        public const int ComponentToWorld = 0x188;
         public const int Instigator = 0x1a0; //Engine.Actor
                                              //public const int isOpen = 0x3F0;
                                              //public const int isHidden = 0x40C;
