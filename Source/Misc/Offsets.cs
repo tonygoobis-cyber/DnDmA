@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 using Security;
 using System;
 using System.Collections.Generic;
@@ -38,7 +38,7 @@ namespace DMAW_DND
 
         public class PlayerState
         {
-            public const int PlayerPawnPrivate = 0x320; //Engine.PlayerState
+            public const int PlayerPawnPrivate = 0x0328; //Engine.PlayerState
             public const int PlayerNamePrivate = 0x340; //Engine.PlayerState
         }
         public class PawnPrivate
@@ -57,7 +57,7 @@ namespace DMAW_DND
         }
         public class RootComponent
         {
-            public const int Location = 0x260; 
+            public const int Location = 0x128; 
             public const int Rotation = 0x140;
         }
     }
