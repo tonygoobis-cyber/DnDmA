@@ -1,0 +1,18 @@
+{
+  "gameName": [
+    "Ruins_01_N_P",
+    "Ruins_01_HR_P",
+    "Ruins_7x7_R_P",
+    "Ruins_7x7_N_P",
+    "Ruins_7x7_HR_P"
+  ],
+  "x": 1024,
+  "y": 1024,
+  "scale": 1.0,
+  "mapLayers": [
+    {
+      "minHeight": -100,
+      "filename": "Maps\\Ruins_01.png"
+    }
+  ]
+}

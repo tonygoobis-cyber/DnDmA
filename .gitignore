@@ -1,0 +1,14 @@
+# Ignore build output folders
+bin/
+obj/
+.vs/
+
+# Ignore NuGet-generated files
+*.nuget.cache
+*.nuget.props
+*.dgspec.json
+
+# Ignore MSBuild cache and metadata files
+*.AssemblyInfo.cs
+*.cache
+*.editorconfig
