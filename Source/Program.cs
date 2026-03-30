@@ -1,5 +1,6 @@
 using ImGuiNET;
 using System.Diagnostics;
+using System.Runtime.InteropServices;
 using static System.Net.Mime.MediaTypeNames;
 using Vortice.Mathematics;
 
@@ -10,6 +11,7 @@ namespace DMAW_DND
         static void Main(string[] args)
         {
             ActivityLog.InitializeEarly();
+            EnsureNativeGraphicsDlls();
             if (args is { Length: > 0 })
                 ActivityLog.Info("Main", "Command-line args: " + string.Join(" ", args));
             AppDomain.CurrentDomain.UnhandledException += (_, e) =>
@@ -55,6 +57,34 @@ namespace DMAW_DND
             while (true)
             {
                 Thread.SpinWait(0);
+            }
+        }
+
+        private static void EnsureNativeGraphicsDlls()
+        {
+            try
+            {
+                string baseDir = AppContext.BaseDirectory;
+                string glfwDllPath = Path.Combine(baseDir, "glfw.dll");
+                if (File.Exists(glfwDllPath))
+                    return;
+
+                string ridRuntimePath = Path.Combine(baseDir, "runtimes", RuntimeInformation.RuntimeIdentifier, "native", "glfw3.dll");
+                string winRuntimePath = Path.Combine(baseDir, "runtimes", "win-x64", "native", "glfw3.dll");
+                string sourcePath = File.Exists(ridRuntimePath) ? ridRuntimePath : winRuntimePath;
+
+                if (!File.Exists(sourcePath))
+                {
+                    ActivityLog.Warn("Main", $"GLFW runtime dependency not found in '{ridRuntimePath}' or '{winRuntimePath}'.");
+                    return;
+                }
+
+                File.Copy(sourcePath, glfwDllPath, overwrite: true);
+                ActivityLog.Info("Main", $"Copied GLFW dependency to '{glfwDllPath}'.");
+            }
+            catch (Exception ex)
+            {
+                ActivityLog.Exception("Main", ex, "EnsureNativeGraphicsDlls");
             }
         }
 

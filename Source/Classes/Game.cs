@@ -97,7 +97,7 @@ namespace DMAW_DND
                 ActivityLog.Info("Game", $"Map name changed: '{_lastActivityLoggedMap ?? "<none>"}' -> '{_currentMapName}'");
                 _lastActivityLoggedMap = _currentMapName;
             }
-            Program.Log($"Current Map: {_currentMapName}");
+            // Keep activity log compact; map transitions are already logged above.
             if (_currentMapName == "<empty>" || _currentMapName == "None" || _currentMapName == null)
             {
                 _inGame = false;

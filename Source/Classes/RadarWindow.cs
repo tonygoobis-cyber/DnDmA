@@ -74,21 +74,10 @@ namespace DMAW_DND
 
         private DateTime _lastRadarDiagUtc = DateTime.MinValue;
 
-        // ESP WINDOW STUFF
-        public static GameWindow espWindow;
-        public static ImGuiController espController;
-        public bool espFullscreen = false;
-        private bool _showEspWindow = false;
-        private bool _espRunning = false;
-        Stopwatch espFrameSW = new Stopwatch();
-        private float espFrameTime = 0f;
-
         /// <summary>Reused every frame — avoids allocating <see cref="StopWatchMilliseconds"/> per frame.</summary>
         private readonly Stopwatch _radarFrameSw = new Stopwatch();
         /// <summary>Phase for ring pulse; driven by frame time instead of <see cref="DateTime.Now"/> (allocations).</summary>
         private float _pulsePhase;
-
-        public int selectedMonitorIndex = 0;
 
         public RadarWindow() : base(GameWindowSettings.Default, new NativeWindowSettings
         {
@@ -114,8 +103,7 @@ namespace DMAW_DND
 
             _font = ImGui.GetFont();
 
-            selectedMonitorIndex = GLFW.GetMonitors().Length - 1; // Set to last monitor by default
-            ActivityLog.Info("RadarWindow", $"OnLoad: complete ClientSize={base.ClientSize.X}x{base.ClientSize.Y} monitors={GLFW.GetMonitors().Length}");
+            ActivityLog.Info("RadarWindow", $"OnLoad: complete ClientSize={base.ClientSize.X}x{base.ClientSize.Y}");
         }
 
         protected override void OnClosing(CancelEventArgs e)
@@ -172,100 +160,6 @@ namespace DMAW_DND
             this.frameTime = _radarFrameSw.Elapsed.TotalMilliseconds;
             if (ActivityLog.LogEveryFrame)
                 ActivityLog.Trace("RadarWindow", $"OnRenderFrame: frameTimeMs={this.frameTime:F2}");
-            RenderEspWindow();
-        }
-
-        private void RenderEspWindow()
-        {
-            if(espWindow != null)
-            {
-                espWindow.MakeCurrent();
-
-                espFrameTime = espFrameSW.ElapsedMilliseconds * 1000;
-                espFrameSW.Restart();
-
-                GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
-                GL.ClearColor(Color4.Black);
-                espController.Update(espWindow, espFrameTime);
-
-                try
-                {
-                    //Program.Log($"(renderespwindow)controller: {Memory.game.PlayerController:X}");
-                    var localPlayerCameraManager = Memory.ReadPtr(Memory.game.PlayerController + Offsets.PlayerCameraManager);
-                    //Program.Log($"LocalPlayerCameraManager: {localPlayerCameraManager:X}");
-                    var localPlayerMinimalViewInfo = Memory.ReadValue<MinimalViewInfo>(localPlayerCameraManager + Offsets.PlayerMinimalViewInfo + 0x10); // + 0x10 takes us from FCameraCacheEntry to POV
-                    //Console.Clear();
-                    //Program.Log($"localplayerMinimalViewInfo: {localPlayerMinimalViewInfo.Location.X} {localPlayerMinimalViewInfo.Location.Y} {localPlayerMinimalViewInfo.Location.Z}");
-                    //Program.Log($"LocalplayermInimalViewInfo: {localPlayerMinimalViewInfo.Rotation.Pitch}, {localPlayerMinimalViewInfo.Rotation.Yaw}, {localPlayerMinimalViewInfo.Rotation.Roll}");
-                    //Program.Log($"LocalplayermInimalViewInfo: {localPlayerMinimalViewInfo.FOV}");
-                    if (Memory.InGame && Memory.GameStatus == Enums.GameStatus.InGame)
-                    {
-                        foreach (var player in Memory.Players)
-                        {
-                            if (player.Value.Bones is not null && player.Value.Type != PlayerType.LocalPlayer)
-                            {
-                                //Program.Log($"ComptoWorld stuff: {player.Value.CompToWorld.Translation.X} {player.Value.CompToWorld.Translation.Y} {player.Value.CompToWorld.Translation.Z}");
-                                //Program.Log($"ComptoWorldStuff : X:{player.Value.CompToWorld.Rotation.X} Y:{player.Value.CompToWorld.Rotation.Y} Z:{player.Value.CompToWorld.Rotation.Z} W{player.Value.CompToWorld.Rotation.W}");
-                                //Program.Log($"ComptoWorldStuff : X:{player.Value.CompToWorld.Scale3D.X} Y:{player.Value.CompToWorld.Scale3D.Y} Z:{player.Value.CompToWorld.Scale3D.Z}");
-                                var bones = player.Value.Bones;
-                                //for each bone in bones
-                                foreach (var (boneFrom, boneTo) in Enums.BoneConnections)
-                                {
-                                    var bone1 = bones.FirstOrDefault(b => b.Key == (int)boneFrom).Value.Transform;
-                                    var bone2 = bones.FirstOrDefault(b => b.Key == (int)boneTo).Value.Transform;
-                                    //Program.Log($"{player.Value.Name} Bone1: {boneFrom} - X:{bone1.Translation.X} Y:{bone1.Translation.Y} Z:{bone1.Translation.Z}");
-                                    Matrix4x4 matrix1 = FTransform.MatrixMultiplication(bone1.ToMatrixWithScale(), player.Value.CompToWorld.ToMatrixWithScale());
-                                    var bonePos1 = new FVector3((float)matrix1.M41, (float)matrix1.M42, (float)matrix1.M43);
-                                    var boneScreenPos1 = EspWindow.WorldToScreen(bonePos1, localPlayerMinimalViewInfo, espWindow.ClientSize.X, espWindow.ClientSize.Y);
-                                    //Program.Log($"Bone Screen Pos1: {boneScreenPos1.X} {boneScreenPos1.Y}");
-                                    Matrix4x4 matrix2 = FTransform.MatrixMultiplication(bone2.ToMatrixWithScale(), player.Value.CompToWorld.ToMatrixWithScale());
-                                    var bonePos2 = new FVector3((float)matrix2.M41, (float)matrix2.M42, (float)matrix2.M43);
-                                    var boneScreenPos2 = EspWindow.WorldToScreen(bonePos2, localPlayerMinimalViewInfo, espWindow.ClientSize.X, espWindow.ClientSize.Y);
-                                    //Program.Log($"Bone Screen Pos1: {boneScreenPos1.X} {boneScreenPos1.Y}");
-                                    //if (boneScreenPos1.X < 0 || boneScreenPos1.Y < 0 || boneScreenPos1.X > 1920 || boneScreenPos1.Y > 1080) continue;
-                                    Vector2 pos1 = new Vector2((float)boneScreenPos1.X, (float)boneScreenPos1.Y);
-                                    Vector2 pos2 = new Vector2((float)boneScreenPos2.X, (float)boneScreenPos2.Y);
-                                    //do not connect hands
-                                    //if (boneFrom == Enums.PlayerBone.hand_l || boneFrom == Enums.PlayerBone.hand_r) continue;
-                                    //if (boneTo == Enums.PlayerBone.hand_l || boneTo == Enums.PlayerBone.hand_r) continue;
-                                    ImGui.GetBackgroundDrawList().AddLine(pos1, pos2, ImGui.GetColorU32(new Vector4(1.0f, 1.0f, 1.0f, 1f)), 1f);
-                                }
-                            }
-                        }
-                    }
-
-                }
-                catch (Exception ex)
-                {
-                    Console.WriteLine(ex);
-                }
-
-                espController.Render();
-                espWindow.SwapBuffers();
-                espWindow.ProcessEvents(0);
-            }
-        }
-
-        static void OnResize(ResizeEventArgs e, GameWindow window, ImGuiController controller)
-        {
-            window.MakeCurrent();
-            GL.Viewport(0, 0, e.Width, e.Height);
-            controller.WindowResized(e.Width, e.Height);
-        }
-
-        private void CloseEspWindow()
-        {
-            if(espWindow != null)
-            {
-                ActivityLog.Info("ESP", "CloseEspWindow");
-                _showEspWindow = false;
-
-                espWindow.Close();
-                espWindow.Dispose();
-                espWindow = null;
-
-                espController.Dispose();
-            }
         }
 
         protected override void OnTextInput(TextInputEventArgs e)
@@ -695,8 +589,8 @@ namespace DMAW_DND
         //        var bone1 = bones[(int)boneFrom];
         //        var bone2 = bones[(int)boneTo];
 
-        //        //bool bonePos1 = EspWindow.WorldToScreen(bone1.Origin, out Vector2 bone1Screen, Memory.ViewMatrix);
-        //        //bool bonePos2 = EspWindow.WorldToScreen(bone2.Origin, out Vector2 bone2Screen, Memory.ViewMatrix);
+        //        //bool bonePos1 = WorldToScreen(bone1.Origin, out Vector2 bone1Screen, Memory.ViewMatrix);
+        //        //bool bonePos2 = WorldToScreen(bone2.Origin, out Vector2 bone2Screen, Memory.ViewMatrix);
 
         //        //if (!bonePos1 || !bonePos2) break;
         //        //ImGui.GetBackgroundDrawList().AddLine(bone1Screen, bone2Screen, ImGui.GetColorU32(new Vector4(1.0f, 1.0f, 1.0f, 1f)), 1.25f);
@@ -758,8 +652,6 @@ namespace DMAW_DND
 
         public void RenderMenu(ImGuiIOPtr io)
         {
-            bool cachedShowEspWindow = _showEspWindow;
-
             bool flag = true;
             float num = 2f;
             float num2 = 2f;
@@ -777,24 +669,6 @@ namespace DMAW_DND
                 //DrawMenuButton("Toggle POIs", ref ReferenceToBool(Config.ActiveConfig.ShowPOIs), "ShowPOIs", true);
                 DrawMenuButton("Settings", ref _showRadarSettings);
 
-//#if DEBUG
-                ImGui.Text("ESP Settings");
-                ImGui.Spacing();
-                ImGui.Separator();
-                // Draw list of monitors, select one to move ESP window to
-                ImGui.Text("Select Monitor");
-                var monitors = GLFW.GetMonitors();
-                // build a string array of monitor names
-                string[] strings = new string[monitors.Length];
-                for (int i = 0; i < monitors.Length; i++)
-                {
-                    strings[i] = $"[{i}] {GLFW.GetMonitorName(monitors[i])}";
-                }
-
-                ImGui.SetNextItemWidth(200f);
-                ImGui.Combo("##Monitor", ref selectedMonitorIndex, strings, monitors.Length);
-                DrawMenuButton("Show ESP Window", ref _showEspWindow);
-//#endif
                 //ImGui.Spacing();
                 //ImGui.Separator();
                 //ImGui.Text("DMAWarehouse");
@@ -844,32 +718,6 @@ namespace DMAW_DND
                     ImGui.End();
                 }
             }
-
-            if (cachedShowEspWindow != _showEspWindow)
-            {
-                if (_showEspWindow)
-                {
-                    //espWindow = new EspWindow(selectedMonitorIndex, 1920, 1080); // Update to use selected monitor index width and height
-                    //use selected monitor index to get the monitor width and height
-                    var monitor = GLFW.GetMonitors()[selectedMonitorIndex];
-                    GLFW.GetMonitorWorkarea(monitor, out int x, out int y, out int width, out int height);
-                    espWindow = new EspWindow(selectedMonitorIndex, width, height);
-                    espController = new ImGuiController(espWindow.ClientSize.X, espWindow.ClientSize.Y);
-                    espWindow.Resize += (e) => OnResize(e, espWindow, espController);
-                    espWindow.KeyDown += (e) => OnEspKeyDown(e);
-                    //espWindow.Closing += (e) => CloseEspWindow(e);
-                    espFrameSW.Start();
-
-                    GLFW.SetWindowAttrib(espWindow.WindowPtr, WindowAttribute.Floating, true);
-                }
-                else
-                {
-                    _showEspWindow = true;
-                    //CloseEspWindow();
-                }
-            }
-
-            
 
             if (0 == 1) // Show Menu
             {
@@ -958,94 +806,6 @@ namespace DMAW_DND
             }
         }
 
-        private void OnEspKeyDown(KeyboardKeyEventArgs e)
-        {
-            ActivityLog.Info("ESP", $"OnEspKeyDown: {e.Key}");
-
-            if (e.Key == Keys.Escape)
-            {
-                if(espWindow.IsFullscreen)
-                {
-                    // Set window to normal
-                    Console.WriteLine("Window is fullscreen, setting to normal");
-                    espWindow.WindowState = WindowState.Normal;
-                    GLFW.RestoreWindow(espWindow.WindowPtr);
-                }
-                else
-                {
-                    Console.WriteLine("Setting to next monitor");
-                    var monitor = GLFW.GetMonitors()[selectedMonitorIndex];
-                    int newHeight;
-                    int newWidth;
-                    GLFW.GetMonitorPhysicalSize(monitor, out newWidth, out newHeight);
-                    GLFW.SetWindowMonitor(espWindow.WindowPtr, GLFW.GetMonitors()[selectedMonitorIndex], 0, 0, newWidth, newHeight, 60);
-                    espWindow.WindowState = WindowState.Fullscreen;
-                }
-            }
-            else if (e.Key == Keys.Left)
-            {
-                // move to previous monitor
-                if (selectedMonitorIndex > 0)
-                {
-                    Console.WriteLine(e.Key.ToString() + " pressed");
-                    selectedMonitorIndex--;
-                    var monitor = GLFW.GetMonitors()[selectedMonitorIndex];
-                    var newHeight = 0;
-                    var newWidth = 0;
-
-                    GLFW.GetMonitorPhysicalSize(monitor, out newWidth, out newHeight);
-                    GLFW.SetWindowMonitor(espWindow.WindowPtr, GLFW.GetMonitors()[selectedMonitorIndex], 0, 0, newWidth, newHeight, 60);
-                }
-            }
-            else if (e.Key == Keys.Right)
-            {
-                // move to next monitor
-                if (selectedMonitorIndex < GLFW.GetMonitors().Length)
-                {
-                    Console.WriteLine(e.Key.ToString() + " pressed");
-                    selectedMonitorIndex++;
-
-                    var monitor = GLFW.GetMonitors()[selectedMonitorIndex];
-
-                    int newHeight = 0;
-                    int newWidth = 0;
-                    GLFW.GetMonitorPhysicalSize(monitor, out newWidth, out newHeight);
-
-                    Console.WriteLine($"New Monitor: {selectedMonitorIndex} - {newWidth}x{newHeight}");
-                    //GLFW.SetWindowMonitor(espWindow.WindowPtr, GLFW.GetMonitors()[selectedMonitorIndex], 0, 0, newWidth, newHeight, 60);
-                }
-            }
-            else if(e.Key == Keys.Down)
-            {
-                var monitors = GLFW.GetMonitors();
-                Console.WriteLine("Monitors: " + monitors.Length);
-
-                for (int i = 0; i < monitors.Length; i++)
-                {
-                    Console.WriteLine($"Monitor {i}: {GLFW.GetMonitorName(monitors[i])}");
-                }
-
-                var currentEspMonitor = GLFW.GetWindowMonitor(espWindow.WindowPtr);
-
-                Console.WriteLine($"Current Monitor: {GLFW.GetMonitorName(currentEspMonitor)}");
-
-                // get current index
-                for (int i = 0; i < monitors.Length; i++)
-                {
-                    if (monitors[i] == currentEspMonitor)
-                    {
-                        selectedMonitorIndex = i;
-                        break;
-                    }
-                }
-
-                Console.WriteLine($"Selected Monitor Index: {selectedMonitorIndex}");
-
-            }
-
-            base.OnKeyDown(e);
-        }
-
         public void DrawMenuButton(string buttonLabel, ref bool controlArg, string ConfigText = "none", bool isConfigSetting = false)
         {
             ImGui.Spacing();
@@ -1079,7 +839,8 @@ namespace DMAW_DND
             if(ImGui.SliderFloat(sliderLabel, ref controlArg, min, max))
             {
                 controlArg = Math.Clamp(controlArg, min, max);
-                if(isConfigSetting)
+                // Persist once after the drag/edit ends; avoids per-frame disk/log churn that can hitch rendering.
+                if(isConfigSetting && ImGui.IsItemDeactivatedAfterEdit())
                 {
                     Config.SetFloat(ConfigText, controlArg);
                 }

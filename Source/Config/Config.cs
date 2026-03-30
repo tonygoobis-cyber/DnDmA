@@ -91,7 +91,11 @@ namespace DMAW_DND
         public static void SetBoolean(string key, bool value)
         {
             // Set the boolean value in the config
-            ActiveConfig.GetType().GetProperty(key).SetValue(ActiveConfig, value);
+            var property = ActiveConfig.GetType().GetProperty(key);
+            if (property == null) return;
+            var current = (bool)property.GetValue(ActiveConfig);
+            if (current == value) return;
+            property.SetValue(ActiveConfig, value);
             Program.Log("Config value " + key + " set to " + value);
         }
         
@@ -104,7 +108,11 @@ namespace DMAW_DND
         public static void SetFloat(string key, float value)
         {
             // Set the float value in the config
-            ActiveConfig.GetType().GetProperty(key).SetValue(ActiveConfig, value);
+            var property = ActiveConfig.GetType().GetProperty(key);
+            if (property == null) return;
+            var current = (float)property.GetValue(ActiveConfig);
+            if (MathF.Abs(current - value) < 0.001f) return;
+            property.SetValue(ActiveConfig, value);
             Program.Log("Config value " + key + " set to " + value);
         }    
     }

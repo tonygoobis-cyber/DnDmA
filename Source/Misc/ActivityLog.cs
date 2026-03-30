@@ -128,7 +128,6 @@ namespace DMAW_DND
                 {
                     EnsureWriterUnlocked();
                     _writer?.WriteLine(line);
-                    _writer?.Flush();
                 }
                 catch
                 {
@@ -176,9 +175,9 @@ namespace DMAW_DND
             _writer = null;
             _currentLogPath = fileName;
 
-            _writer = new StreamWriter(new FileStream(fileName, FileMode.Append, FileAccess.Write, FileShare.Read), new UTF8Encoding(encoderShouldEmitUTF8Identifier: false))
+            _writer = new StreamWriter(new FileStream(fileName, FileMode.Append, FileAccess.Write, FileShare.ReadWrite), new UTF8Encoding(encoderShouldEmitUTF8Identifier: false))
             {
-                AutoFlush = true
+                AutoFlush = false
             };
         }
 
